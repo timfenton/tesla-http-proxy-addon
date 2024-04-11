@@ -19,7 +19,7 @@ export PASSWORD_STORE_DIR=/data/password-store
 
 generate_keypair() {
   # generate self signed SSL certificate
-  bashio::log.info "Generating self-signed SSL certificate"
+  bashio::log.info "Generating self-signed SSL certificates"
   openssl req -x509 -nodes -newkey ec \
       -pkeyopt ec_paramgen_curve:secp521r1 \
       -pkeyopt ec_param_enc:named_curve  \
