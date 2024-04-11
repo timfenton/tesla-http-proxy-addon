@@ -18,20 +18,6 @@ export GNUPGHOME=/data/gnugpg
 export PASSWORD_STORE_DIR=/data/password-store
 
 generate_keypair() {
-  # add custom config to Nginx if it's installed
-  if ping -c 1 core-nginx-proxy >/dev/null 2>&1; then
-    bashio::log.info "Current Nginx configuration"
-    bashio::addon.options core_nginx_proxy
-    echo
-
-    bashio::log.info "Adding custom config to /share/nginx_proxy/nginx_tesla.conf"
-    mkdir -p /share/nginx_proxy
-    sed "s/__DOMAIN__/${DOMAIN}/g; s/__PROXYHOST__/${HOSTNAME}/g" /app/nginx_tesla.conf > /share/nginx_proxy/nginx_tesla.conf
-    cat /share/nginx_proxy/nginx_tesla.conf
-  else
-    bashio::log.warning "Nginx is not running"
-  fi
-
   # generate self signed SSL certificate
   bashio::log.info "Generating self-signed SSL certificate"
   openssl req -x509 -nodes -newkey ec \
@@ -42,12 +28,12 @@ generate_keypair() {
       -addext "extendedKeyUsage = serverAuth" \
       -addext "keyUsage = digitalSignature, keyCertSign, keyAgreement"
   mkdir -p /share/tesla
-  cp /data/cert.pem /share/tesla/selfsigned.pem
+  cp /data/cert.pem /share/AppData/tesla/selfsigned.pem
 
   # Generate keypair
   bashio::log.info "Generating keypair"
-  /usr/bin/tesla-keygen -f -keyring-type pass -key-name myself create > /share/tesla/com.tesla.3p.public-key.pem
-  cat /share/tesla/com.tesla.3p.public-key.pem
+  /usr/bin/tesla-keygen -f -keyring-type pass -key-name myself create > /share/AppData/tesla/com.tesla.3p.public-key.pem
+  cat /share/AppData/tesla/com.tesla.3p.public-key.pem
 }
 
 # run on first launch only
@@ -61,8 +47,8 @@ if ! pass > /dev/null 2>&1; then
   generate_keypair
 
 # verify certificate is not from previous install
-elif [ -f /share/tesla/com.tesla.3p.public-key.pem ] && [ -f /share/tesla/selfsigned.pem ]; then
-  certPubKey="$(openssl x509 -noout -pubkey -in /share/tesla/selfsigned.pem)"
+elif [ -f /share/AppData/tesla/com.tesla.3p.public-key.pem ] && [ -f /share/AppData/tesla/selfsigned.pem ]; then
+  certPubKey="$(openssl x509 -noout -pubkey -in /share/AppData/tesla/selfsigned.pem)"
   keyPubKey="$(openssl pkey -pubout -in /data/key.pem)"
   if [ "${certPubKey}" == "${keyPubKey}" ]; then
     bashio::log.info "Found existing keypair"
@@ -87,12 +73,5 @@ else
   if bashio::config.true regenerate_auth; then
     bashio::log.info "Running auth.py"
     python3 /app/auth.py
-  fi
-
-  bashio::log.info "Starting Tesla HTTP Proxy"
-  if bashio::config.true debug; then
-    /usr/bin/tesla-http-proxy -keyring-debug -keyring-type pass -key-name myself -cert /data/cert.pem -tls-key /data/key.pem -port 443 -host 0.0.0.0 -verbose
-  else
-    /usr/bin/tesla-http-proxy -keyring-debug -keyring-type pass -key-name myself -cert /data/cert.pem -tls-key /data/key.pem -port 443 -host 0.0.0.0
   fi
 fi
